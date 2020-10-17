@@ -45,13 +45,34 @@ class Clasificador:
 
 ##############################################################################
 
+
+
 class ClasificadorNaiveBayes(Clasificador):
 
+    def procesaDiscreto(arr, numX, numY):
+        mat = np.zeros((numX, numY))
+        for el in arr:
+            mat[el[0], el[1]] += 1
+        return mat
 
+    def procesaContinuo(arr, numY):
+        means = np.zeros(numY)
+        vars = np.zeros(numY)
+        for i in range(numY):
+            foo = np.where(arr[:,1] == i)
+            means[i] = np.mean(foo)
+            vars[i] = np.var(foo)
+        return (means, vars)
 
     # TODO: implementar
     def entrenamiento(self,datostrain,atributosDiscretos,diccionario):
-        pass
+        self.entrenamientoAux = []
+        for i in range(len(atributosDiscretos)-1):
+            foo = np.column_stack((datostrain[:,i],datostrain[:,-1]))
+            if atributosDiscretos[i]:
+                self.entrenamientoAux.append(procesaDiscreto(foo, len(diccionario[i].keys), len(diccionario[-1].keys)))
+            else:
+                self.entrenamientoAux.append(procesaContinuo(foo), len(diccionario[-1].keys))
 
 
 
