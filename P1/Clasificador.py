@@ -49,13 +49,13 @@ class Clasificador:
 
 class ClasificadorNaiveBayes(Clasificador):
 
-    def procesaDiscreto(arr, numX, numY):
-        mat = np.zeros((numX, numY))
-        for el in arr:
-            mat[el[0], el[1]] += 1
-        return mat
+    def procesaDiscreto(self, arr, numX, numY):
+        foo = np.zeros((numX, numY))
+        for row in arr:
+            foo[row[0], row[1]] += 1
+        return foo / np.sum(foo)
 
-    def procesaContinuo(arr, numY):
+    def procesaContinuo(self, arr, numY):
         means = np.zeros(numY)
         vars = np.zeros(numY)
         for i in range(numY):
@@ -64,15 +64,22 @@ class ClasificadorNaiveBayes(Clasificador):
             vars[i] = np.var(foo)
         return (means, vars)
 
+    def procesaFinal(self, arr, numY):
+        foo = np.zeros(numY)
+        for row in arr:
+            foo[row] += 1
+        return foo / np.sum(foo)
+
     # TODO: implementar
     def entrenamiento(self,datostrain,atributosDiscretos,diccionario):
         self.entrenamientoAux = []
         for i in range(len(atributosDiscretos)-1):
             foo = np.column_stack((datostrain[:,i],datostrain[:,-1]))
             if atributosDiscretos[i]:
-                self.entrenamientoAux.append(procesaDiscreto(foo, len(diccionario[i].keys), len(diccionario[-1].keys)))
+                self.entrenamientoAux.append(self.procesaDiscreto(foo, len(diccionario[i]), len(diccionario[-1])))
             else:
-                self.entrenamientoAux.append(procesaContinuo(foo), len(diccionario[-1].keys))
+                self.entrenamientoAux.append(self.procesaContinuo(foo), len(diccionario[-1]))
+        self.entrenamientoAux.append(self.procesaFinal(datostrain[:,-1], len(diccionario[-1])))
 
 
 
