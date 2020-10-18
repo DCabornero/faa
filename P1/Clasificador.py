@@ -53,7 +53,10 @@ class ClasificadorNaiveBayes(Clasificador):
         foo = np.zeros((numX, numY))
         for row in arr:
             foo[row[0], row[1]] += 1
-        return foo / np.sum(foo)
+        #Normalizamos cada columna
+        for i in range(np.shape(foo)[1]):
+            foo[:,i] /= np.sum(foo[:,i])
+        return foo
 
     def procesaContinuo(self, arr, numY):
         means = np.zeros(numY)
@@ -85,4 +88,17 @@ class ClasificadorNaiveBayes(Clasificador):
 
     # TODO: implementar
     def clasifica(self,datostest,atributosDiscretos,diccionario):
-        pass
+        numRows = np.shape(datostest)[0]
+        numCols = len(atributosDiscretos)
+        clasif = np.zeros(numRows)
+        for i in range(numRows):
+            preds = np.ones(len(diccionario[-1]))
+            for j in range(numCols-1):
+                if atributosDiscretos[j]:
+                    preds = np.multiply(self.entrenamientoAux[j][datostest[i,j],:],preds)
+                else:
+                    ## TODO: caso no discreto
+                    preds = preds*1
+            preds = np.multiply(self.entrenamientoAux[-1],preds)
+            clasif[i] = np.argmax(preds)
+        return clasif
