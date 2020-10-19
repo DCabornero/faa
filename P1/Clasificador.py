@@ -50,7 +50,7 @@ class Clasificador:
             self.entrenamiento( datostrain, dataset.nominalAtributos, dataset.diccionario )
             pred = self.clasifica( datostest, dataset.nominalAtributos, dataset.diccionario )
             errs[i] = self.error( datostest, pred )
-        return ( np.mean(errs), np.std(errs) )
+        return errs
 
 ##############################################################################
 
