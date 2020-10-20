@@ -116,7 +116,7 @@ class ClasificadorNaiveBayes(Clasificador):
                 else:
                     probs = []
                     means, stds = self.entrenamientoAux[j]
-                    probs = [norm.cdf(datostest[i,j],loc=means[k],scale=stds[k]) for k in range(len(diccionario[-1]))]
+                    probs = [norm.pdf(datostest[i,j],loc=means[k],scale=stds[k]) for k in range(len(diccionario[-1]))]
                     preds = np.multiply(probs, preds)
             # Hallamos la probabilidad del prior
             preds = np.multiply(self.entrenamientoAux[-1],preds)
