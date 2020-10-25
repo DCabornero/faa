@@ -42,6 +42,7 @@ class ValidacionSimple(EstrategiaParticionado):
         numDatos = len(datos.datos)
         indexList = [i for i in range(numDatos)]
         numTest = int(np.floor(numDatos * self.proporcionTest))
+        self.particiones = []
         for _ in range(self.numeroEjecuciones):
             p = Particion()
             random.shuffle(indexList)
@@ -70,6 +71,7 @@ class ValidacionCruzada(EstrategiaParticionado):
         chunkSize = int(np.floor(numDatos / self.numeroParticiones))
         bloques = [ indexList[i*chunkSize:(i + 1)*chunkSize] for i in range(self.numeroParticiones - 1) ]
         bloques.append( indexList[(self.numeroParticiones - 1)*chunkSize:] )
+        self.particiones = []
         for i in range(len(bloques)):
             p = Particion()
             p.indicesTest = bloques[i]

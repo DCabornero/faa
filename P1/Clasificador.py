@@ -2,6 +2,7 @@ from abc import ABCMeta,abstractmethod
 import numpy as np
 from scipy.stats import norm
 
+from EstrategiaParticionado import ValidacionSimple
 
 class Clasificador:
 
@@ -36,27 +37,50 @@ class Clasificador:
 
     # Realiza una clasificacion utilizando una estrategia de particionado determinada
     # TODO: implementar esta funcion
-    def validacion(self,particionado,dataset,seed=None,laplace=False):
+    def validacion(self,particionado,dataset,clasificador=None,seed=None):
         # Creamos las particiones siguiendo la estrategia llamando a particionado.creaParticiones
         # - Para validacion cruzada: en el bucle hasta nv entrenamos el clasificador con la particion de train i
         # y obtenemos el error en la particion de test i
         # - Para validacion simple (hold-out): entrenamos el clasificador con la particion de train
         # y obtenemos el error en la particion test. Otra opci�n es repetir la validaci�n simple un n�mero especificado de veces, obteniendo en cada una un error. Finalmente se calcular�a la media.
+        if clasificador == None:
+            clasificador = self
         particionado.creaParticiones(dataset,seed=seed)
         errs = np.zeros(len(particionado.particiones))
         for i, p in enumerate(particionado.particiones):
             datostrain = dataset.extraeDatos( p.indicesTrain )
             datostest = dataset.extraeDatos( p.indicesTest )
-            self.entrenamiento( datostrain, dataset.nominalAtributos, dataset.diccionario, laplace=laplace )
-            pred = self.clasifica( datostest, dataset.nominalAtributos, dataset.diccionario )
+            clasificador.entrenamiento( datostrain, dataset.nominalAtributos, dataset.diccionario)
+            pred = clasificador.clasifica( datostest, dataset.nominalAtributos, dataset.diccionario )
             errs[i] = self.error( datostest, pred )
         return errs
+
+    def confusion_matrix(self,datos,pred):
+        conf_mat = np.zeros((2,2))
+        comp = np.column_stack((datos[:,-1],pred))
+        foo = {(True,True):(0,0), (True,False):(0,1), (False,True):(1,0), (False,False):(1,1)}
+        for x in comp:
+            conf_mat[foo[(x[0] == 1, x[1] == 1)]] += 1
+        return conf_mat
+
+    def get_confusion_matrix(self,dataset,seed=None,proporcionTest=0.3):
+        particionado = ValidacionSimple(proporcionTest)
+        particionado.creaParticiones(dataset,seed=seed)
+        p = particionado.particiones[0]
+        datostrain = dataset.extraeDatos( p.indicesTrain )
+        datostest = dataset.extraeDatos( p.indicesTest )
+        self.entrenamiento( datostrain, dataset.nominalAtributos, dataset.diccionario )
+        pred = self.clasifica( datostest, dataset.nominalAtributos, dataset.diccionario )
+        return self.confusion_matrix( datostest, pred )
 
 ##############################################################################
 
 
 
 class ClasificadorNaiveBayes(Clasificador):
+
+    def __init__(self, laplace=False):
+        self.laplace = laplace
 
     def procesaDiscreto(self, arr, numX, numY, laplace):
         foo = np.zeros((numX, numY))
@@ -88,12 +112,12 @@ class ClasificadorNaiveBayes(Clasificador):
         return foo / np.sum(foo)
 
     # TODO: implementar
-    def entrenamiento(self,datostrain,atributosDiscretos,diccionario,laplace=False):
+    def entrenamiento(self,datostrain,atributosDiscretos,diccionario):
         self.entrenamientoAux = []
         for i in range(len(atributosDiscretos)-1):
             foo = np.column_stack((datostrain[:,i],datostrain[:,-1]))
             if atributosDiscretos[i]:
-                self.entrenamientoAux.append(self.procesaDiscreto(foo, len(diccionario[i]), len(diccionario[-1]),laplace))
+                self.entrenamientoAux.append(self.procesaDiscreto(foo, len(diccionario[i]), len(diccionario[-1]),self.laplace))
             else:
                 self.entrenamientoAux.append(self.procesaContinuo(foo, len(diccionario[-1])))
         self.entrenamientoAux.append(self.procesaFinal(datostrain[:,-1], len(diccionario[-1])))
