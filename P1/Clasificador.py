@@ -22,7 +22,6 @@ class Clasificador:
 
 
     @abstractmethod
-
     # Una vez entrenado, el clasificador devuleve un array de predicciones
     # dado un testSet
     # datosTest: matriz numpy con los datos de prueba
@@ -72,7 +71,7 @@ class Clasificador:
         comp = np.column_stack((datos[:,-1],pred))
         foo = {(True,True):(0,0), (True,False):(0,1), (False,True):(1,0), (False,False):(1,1)}
         for x in comp:
-            conf_mat[foo[(x[0] == 1, x[1] == 1)]] += 1
+            conf_mat[foo[ (x[0] == 1, x[1] == 1) ]] += 1
         return conf_mat
 
     # Función que dada una clase Datos y la proporcion de testSet nos devuelve la

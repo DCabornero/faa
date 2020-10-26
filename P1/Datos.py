@@ -2,11 +2,9 @@ import pandas as pd
 import numpy as np
 
 # Excepción en caso de que algún dato no sea de tipo numérico ni nominal
-class ValueError(Exception):
+class InvalidTypeError(Exception):
     def __init__(self,msg):
-        self.message = msg
-    def __str__(self):
-        return self.message
+        super().__init__(msg)
 
 
 # Función auxiliar que evalúa el tipo de un cierto array y decide si es válido o no
@@ -19,7 +17,7 @@ def isNominal(x):
         return False
     # Cualquier otro valor no está permitido
     else:
-        raise ValueError(msg="Error: introducido valor distinto de entero o nominal")
+        raise InvalidTypeError("Error: introducido valor distinto de entero o nominal")
 
 # Dado un array de datos nominales, calcula un diccionario que codifica dichos valores
 # en índices que ordenan dichos datos por orden alfabético
