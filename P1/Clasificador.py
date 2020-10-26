@@ -76,17 +76,21 @@ class Clasificador:
 
     # Función que dada una clase Datos y la proporcion de testSet nos devuelve la
     # matriz de confusión obtenida mediante validación simple.
-    def get_confusion_matrix(self,dataset,seed=None,proporcionTest=0.3):
+    def get_confusion_matrix(self,particionado,dataset,seed=None):
         # Creación de la única partición
-        particionado = ValidacionSimple(proporcionTest)
         particionado.creaParticiones(dataset,seed=seed)
-        p = particionado.particiones[0]
-        datostrain = dataset.extraeDatos( p.indicesTrain )
-        datostest = dataset.extraeDatos( p.indicesTest )
-        # Entrenamiento y clasificación de los datos dados
-        self.entrenamiento( datostrain, dataset.nominalAtributos, dataset.diccionario )
-        pred = self.clasifica( datostest, dataset.nominalAtributos, dataset.diccionario )
-        return self.confusion_matrix( datostest, pred )
+        conf_mats = np.zeros((2,2))
+        for p in particionado.particiones:
+            datostrain = dataset.extraeDatos( p.indicesTrain )
+            datostest = dataset.extraeDatos( p.indicesTest )
+            # Entrenamiento y clasificación de los datos dados
+            self.entrenamiento( datostrain, dataset.nominalAtributos, dataset.diccionario )
+            pred = self.clasifica( datostest, dataset.nominalAtributos, dataset.diccionario )
+            conf_mats += self.confusion_matrix(datostest,pred)
+        # Si utilizamos un particionado que devuelva varias particiones, se
+        # calcula la matriz de confusión para cada partición y se devuelve
+        # la suma de las matrices
+        return conf_mats
 
 ##############################################################################
 
