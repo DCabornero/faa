@@ -152,19 +152,19 @@ class ClasificadorNaiveBayes(Clasificador):
 
     # Entrenamiento realizado mediante la estrategia Naive-Bayes.
     def entrenamiento(self,datostrain,atributosDiscretos,diccionario):
-        self.entrenamientoAux = []
+        self.trainInfo = []
         # Para cada atributo, obtenemos los datos necesarios.
         for i in range(len(atributosDiscretos)-1):
             foo = np.column_stack((datostrain[:,i],datostrain[:,-1]))
             # Si el atributo es discreto, obtenemos la matriz de ocurrencias normalizada por clases.
             if atributosDiscretos[i]:
-                self.entrenamientoAux.append(self.procesaDiscreto(foo, len(diccionario[i]), len(diccionario[-1]),self.laplace))
+                self.trainInfo.append(self.procesaDiscreto(foo, len(diccionario[i]), len(diccionario[-1]),self.laplace))
             # Si el atributo es continuo, obtenemos la media y desviación típica del atributo
             # para cada clase.
             else:
-                self.entrenamientoAux.append(self.procesaContinuo(foo, len(diccionario[-1])))
+                self.trainInfo.append(self.procesaContinuo(foo, len(diccionario[-1])))
         # Obtenemos los priores
-        self.entrenamientoAux.append(self.procesaFinal(datostrain[:,-1], len(diccionario[-1])))
+        self.trainInfo.append(self.procesaFinal(datostrain[:,-1], len(diccionario[-1])))
 
 
 
@@ -181,16 +181,15 @@ class ClasificadorNaiveBayes(Clasificador):
             for j in range(numCols-1):
                 # Caso discreto
                 if atributosDiscretos[j]:
-                    atrMatrix = self.entrenamientoAux[j]
+                    atrMatrix = self.trainInfo[j]
                     preds = np.multiply(atrMatrix[datostest[i,j],:],preds)
                 # Caso continuo
                 else:
-                    probs = []
-                    means, stds = self.entrenamientoAux[j]
+                    means, stds = self.trainInfo[j]
                     probs = [norm.pdf(datostest[i,j],loc=means[k],scale=stds[k]) for k in range(len(diccionario[-1]))]
                     preds = np.multiply(probs, preds)
             # Hallamos la probabilidad del prior
-            preds = np.multiply(self.entrenamientoAux[-1],preds)
+            preds = np.multiply(self.trainInfo[-1],preds)
             # Elección de la clase con mejor probabilidad a posteriori
             clasif[i] = np.argmax(preds)
         return clasif
