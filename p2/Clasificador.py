@@ -259,10 +259,10 @@ class ClasificadorRegresionLogistica(Clasificador):
 
         results = np.zeros((np.shape(datostest)[0]))
         # Para cada resultado, vemos qué da el vector de entrenamiento con los parmámetros
-        # de cada ejemplo. Ese resultado es la probabilidad de ser de clase 0.
+        # de cada ejemplo. Ese resultado es la probabilidad de ser de clase 1.
         for i, row in enumerate(Xtest):
             if np.dot(self.trainVector,row) <= 0.5:
-                results[i] = 1
-            else:
                 results[i] = 0
+            else:
+                results[i] = 1
         return results
