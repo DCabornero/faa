@@ -92,6 +92,30 @@ class Clasificador:
         # la suma de las matrices
         return conf_mats
 
+    # Calcula las desviaciones típicas de un conjunto de datos. Para cada columna se
+    # devuelve:
+    # - Una dupla con la media y la desviacion típica si contiene datos continuos
+    # - None si contiene datos discretos
+    def calcularMediasDesv(self,datos,nominalAtributos):
+        ret = []
+        for col in range(len(nominalAtributos)):
+            if nominalAtributos[col]:
+                ret.append(None)
+            else:
+                mean = np.mean(datos[:,col])
+                std = np.std(datos[:,col])
+                ret.append((mean,std))
+        return ret
+
+    # Devuelve la matriz con los datos de las columnas continuas normalizados.
+    # Los datos nominales permanecen iguales.
+    def normalizarDatos(self,datos,nominalAtributos):
+        norm = np.copy(datos)
+        for col in range(len(nominalAtributos)):
+            if not nominalAtributos[col]:
+                norm[:,col] = (norm[:,col]-self.escala[col][0])/self.escala[col][1]
+        return norm
+
 ##############################################################################
 
 
@@ -193,3 +217,52 @@ class ClasificadorNaiveBayes(Clasificador):
             # Elección de la clase con mejor probabilidad a posteriori
             clasif[i] = np.argmax(preds)
         return clasif
+
+
+# Clase que hereda el método abstracto clasificador. Entrena y clasifica conjuntos
+# de datos siguiendo la estrategia de regresión logística.
+class ClasificadorRegresionLogistica(Clasificador):
+    # eta: constante de aprendizaje
+    def __init__(self,eta=1,epochs=10):
+        self.eta = eta
+        self.epochs = epochs
+
+    # Entrenamiento realizado mediante la estrategia de regresión logística.
+    def entrenamiento(self,datostrain,atributosDiscretos,diccionario):
+        # Normalización de datos continuos
+        self.escala = self.calcularMediasDesv(datostrain,atributosDiscretos)
+        normTrain = self.normalizarDatos(datostrain,atributosDiscretos)
+
+        # A la matriz de entrenamiento la añadimos una columna de unos a la izquierda
+        Xtrain = np.hstack((np.ones((np.shape(datostrain)[0],1)),normTrain[:,:-1]))
+        ytrain = normTrain[:,-1]
+        sig = lambda x: 1/(1+np.exp(-x))
+
+        # Inicialización del vector w con valores aleatorios entre -0.5 y 0.5
+        w = np.random.random_sample((np.shape(Xtrain)[1]))-0.5
+
+        for _ in range(self.epochs):
+            for i, row in enumerate(Xtrain):
+                sigmoide = sig(np.dot(w,row))
+                w = w - self.eta*(sigmoide-ytrain[i])*row
+
+        self.trainVector = w
+
+    # Clasificación de un cierto testSet según Regresión Logística una vez obtenido el vector
+    # de entrenamiento.
+    def clasifica(self,datostest,atributosDiscretos,diccionario):
+        # Normalización de datos
+        normTest = self.normalizarDatos(datostest,atributosDiscretos)
+
+        # A la matriz de entrenamiento la añadimos una columna de unos a la izquierda
+        Xtest = np.hstack((np.ones((np.shape(datostest)[0],1)),normTest[:,:-1]))
+
+        results = np.zeros((np.shape(datostest)[0]))
+        # Para cada resultado, vemos qué da el vector de entrenamiento con los parmámetros
+        # de cada ejemplo. Ese resultado es la probabilidad de ser de clase 0.
+        for i, row in enumerate(Xtest):
+            if np.dot(self.trainVector,row) <= 0.5:
+                results[i] = 1
+            else:
+                results[i] = 0
+        return results
