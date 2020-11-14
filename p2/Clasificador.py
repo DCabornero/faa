@@ -97,23 +97,24 @@ class Clasificador:
     # - Una dupla con la media y la desviacion típica si contiene datos continuos
     # - None si contiene datos discretos
     def calcularMediasDesv(self,datos,nominalAtributos):
-        ret = []
-        for col in range(len(nominalAtributos)):
-            if nominalAtributos[col]:
-                ret.append(None)
-            else:
-                mean = np.mean(datos[:,col])
-                std = np.std(datos[:,col])
-                ret.append((mean,std))
-        return ret
+        means = np.zeros_like(nominalAtributos)
+        stds = np.zeros_like(nominalAtributos)
+        for i in range(len(nominalAtributos)):
+            if not nominalAtributos[i]:
+                means[i] = np.mean(data[:,i])
+                stds[i] = np.std(data[:,i])
+        # Se podría hacer np.mean(datos, axis=0) y np.std(datos, axis=0)
+        # directamente. Aunque se calcule tambien la media y desv de atributos
+        # no nominales, reduce mucho el numero de lineas y es mas eficiente
+        return (means, stds)
 
     # Devuelve la matriz con los datos de las columnas continuas normalizados.
     # Los datos nominales permanecen iguales.
     def normalizarDatos(self,datos,nominalAtributos):
         norm = np.copy(datos)
-        for col in range(len(nominalAtributos)):
-            if not nominalAtributos[col]:
-                norm[:,col] = (norm[:,col]-self.escala[col][0])/self.escala[col][1]
+        for i in range(len(nominalAtributos)):
+            if not nominalAtributos[i]:
+                norm[:,i] = (norm[:,i] - self.trainMeans[i]) / self.trainStds[i]
         return norm
 
 ##############################################################################
@@ -230,7 +231,7 @@ class ClasificadorRegresionLogistica(Clasificador):
     # Entrenamiento realizado mediante la estrategia de regresión logística.
     def entrenamiento(self,datostrain,atributosDiscretos,diccionario):
         # Normalización de datos continuos
-        self.escala = self.calcularMediasDesv(datostrain,atributosDiscretos)
+        self.trainMeans, self.trainStds = self.calcularMediasDesv(datostrain,atributosDiscretos)
         normTrain = self.normalizarDatos(datostrain,atributosDiscretos)
 
         # A la matriz de entrenamiento la añadimos una columna de unos a la izquierda
@@ -266,3 +267,65 @@ class ClasificadorRegresionLogistica(Clasificador):
             else:
                 results[i] = 1
         return results
+
+def distEuclidea(x, y):
+    return np.sqrt(np.sum(np.power(x-y, 2)))
+
+def distManhattan(x, y):
+    return np.sum(np.abs(x-y))
+
+def distMahalanobis(x, y):
+    # creo que no entiendo la distancia de mahalanobis
+    return 0
+
+# Clase que hereda el método abstracto clasificador. Entrena y clasifica conjuntos
+# de datos usando el algoritmo de K Vecinos próximos
+class ClasificadorVecinosProximos(Clasificador):
+
+    # Diccionario que contiene la funciones para cada distancia
+    distancias = {
+        'euclidea':distEuclidea,
+        'manhattan':distManhattan,
+        'mahalanobis':distMahalanobis
+    }
+
+    # numeroVecinos:
+    # distancia: funcion distancia con la que se aplicará el algoritmo.
+    #   Las posibles distancias son:
+    #   - euclidea
+    #   - mahalanobis
+    #   - manhattan
+    def __init__(self, numeroVecinos, distancia='euclidea'):
+        self.numeroVecinos = numeroVecinos
+        self.dist = distancias[distancia]
+
+    # Método de entrenamiento de k-nn. Se calcula la media y desv de los datos
+    # y se guardan los datos normalizados
+    def entrenamiento(self,datostrain,atributosDiscretos,diccionario):
+        # Normalización de datos continuos
+        self.trainMeans, self.trainStds = self.calcularMediasDesv(datostrain,atributosDiscretos)
+        self.normTrain = self.normalizarDatos(datostrain,atributosDiscretos)
+
+    # Clasifica un solo dato usando k-nn
+    def clasificaUno(self,dato):
+        dists = np.zeros(datostest.shape[1])
+        for i, row in enumerate(self.normTrain):
+            dists[i] = self.dist(dato, row)
+        # devuelve los indices de las k menores distancias
+        ind = np.argpartition(dists, self.numeroVecinos)[:self.numeroVecinos]
+        # devuelve las clases de los datos que han obtenido las menores distancias
+        clases = datostest[ind,-1]
+        # bincount devuelve las frecuencias de cada numero en un array de enteros
+        # no-negativos
+        counts = np.bincount(clases)
+        return np.argmax(counts)
+
+    # Clasificación datostest usando k-nn
+    def clasifica(self,datostest,atributosDiscretos,diccionario):
+        # Normalización de datos
+        normTest = self.normalizarDatos(datostest,atributosDiscretos)
+        # Array donde se van a ir guardando la clase predicha para cada dato
+        preds = np.zeros((np.shape(datostest)[0]))
+        for i, row in enumerate(normTest):
+            preds[i] = self.clasificaUno(row)
+        return preds
