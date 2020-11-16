@@ -101,8 +101,8 @@ class Clasificador:
         stds = np.zeros_like(nominalAtributos)
         for i in range(len(nominalAtributos)):
             if not nominalAtributos[i]:
-                means[i] = np.mean(data[:,i])
-                stds[i] = np.std(data[:,i])
+                means[i] = np.mean(datos[:,i])
+                stds[i] = np.std(datos[:,i])
         # Se podría hacer np.mean(datos, axis=0) y np.std(datos, axis=0)
         # directamente. Aunque se calcule tambien la media y desv de atributos
         # no nominales, reduce mucho el numero de lineas y es mas eficiente
@@ -112,7 +112,7 @@ class Clasificador:
     # Los datos nominales permanecen iguales.
     def normalizarDatos(self,datos,nominalAtributos):
         norm = np.copy(datos)
-        for i in range(len(nominalAtributos)):
+        for i in range(len(nominalAtributos)-1):
             if not nominalAtributos[i]:
                 norm[:,i] = (norm[:,i] - self.trainMeans[i]) / self.trainStds[i]
         return norm
@@ -268,26 +268,21 @@ class ClasificadorRegresionLogistica(Clasificador):
                 results[i] = 1
         return results
 
-def distEuclidea(x, y):
-    return np.sqrt(np.sum(np.power(x-y, 2)))
-
-def distManhattan(x, y):
-    return np.sum(np.abs(x-y))
-
-def distMahalanobis(x, y):
-    # creo que no entiendo la distancia de mahalanobis
-    return 0
 
 # Clase que hereda el método abstracto clasificador. Entrena y clasifica conjuntos
 # de datos usando el algoritmo de K Vecinos próximos
 class ClasificadorVecinosProximos(Clasificador):
 
-    # Diccionario que contiene la funciones para cada distancia
-    distancias = {
-        'euclidea':distEuclidea,
-        'manhattan':distManhattan,
-        'mahalanobis':distMahalanobis
-    }
+    def distEuclidea(self,x, y):
+        return np.sqrt(np.sum(np.power(x-y, 2)))
+
+    def distManhattan(self,x, y):
+        return np.sum(np.abs(x-y))
+
+    def distMahalanobis(self,x, y):
+        diff = x - y
+        prod = np.matmul(np.matmul([diff],self.mahaMatrix),np.transpose([diff]))[0,0]
+        return np.sqrt(prod)
 
     # numeroVecinos:
     # distancia: funcion distancia con la que se aplicará el algoritmo.
@@ -296,29 +291,39 @@ class ClasificadorVecinosProximos(Clasificador):
     #   - mahalanobis
     #   - manhattan
     def __init__(self, numeroVecinos, distancia='euclidea'):
+        # Diccionario que contiene la funciones para cada distancia
+        self.distancias = {
+            'euclidea': self.distEuclidea,
+            'manhattan': self.distManhattan,
+            'mahalanobis': self.distMahalanobis
+        }
         self.numeroVecinos = numeroVecinos
-        self.dist = distancias[distancia]
+        self.dist = self.distancias[distancia]
 
     # Método de entrenamiento de k-nn. Se calcula la media y desv de los datos
     # y se guardan los datos normalizados
     def entrenamiento(self,datostrain,atributosDiscretos,diccionario):
         # Normalización de datos continuos
         self.trainMeans, self.trainStds = self.calcularMediasDesv(datostrain,atributosDiscretos)
-        self.normTrain = self.normalizarDatos(datostrain,atributosDiscretos)
+        self.normTrain = self.normalizarDatos(datostrain,atributosDiscretos).astype(np.float32)
+        # Cálculo de la inversa de la matriz de covarianzas
+        if self.dist == self.distMahalanobis:
+            self.mahaMatrix = np.linalg.inv(np.cov(np.transpose(self.normTrain[:,:-1])))
+
 
     # Clasifica un solo dato usando k-nn
     def clasificaUno(self,dato):
-        dists = np.zeros(datostest.shape[1])
-        for i, row in enumerate(self.normTrain):
+        dists = np.zeros(self.normTrain.shape[0])
+        for i, row in enumerate(self.normTrain[:,:-1]):
             dists[i] = self.dist(dato, row)
         # devuelve los indices de las k menores distancias
         ind = np.argpartition(dists, self.numeroVecinos)[:self.numeroVecinos]
         # devuelve las clases de los datos que han obtenido las menores distancias
-        clases = datostest[ind,-1]
+        clases = self.normTrain[ind,-1]
         # bincount devuelve las frecuencias de cada numero en un array de enteros
         # no-negativos
-        counts = np.bincount(clases)
-        return np.argmax(counts)
+        valores, counts = np.unique(clases,return_counts=True)
+        return valores[np.argmax(counts)]
 
     # Clasificación datostest usando k-nn
     def clasifica(self,datostest,atributosDiscretos,diccionario):
@@ -327,5 +332,5 @@ class ClasificadorVecinosProximos(Clasificador):
         # Array donde se van a ir guardando la clase predicha para cada dato
         preds = np.zeros((np.shape(datostest)[0]))
         for i, row in enumerate(normTest):
-            preds[i] = self.clasificaUno(row)
+            preds[i] = self.clasificaUno(row[:-1])
         return preds
