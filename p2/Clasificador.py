@@ -224,15 +224,19 @@ class ClasificadorNaiveBayes(Clasificador):
 # de datos siguiendo la estrategia de regresión logística.
 class ClasificadorRegresionLogistica(Clasificador):
     # eta: constante de aprendizaje
-    def __init__(self,eta=1,epochs=10):
+    def __init__(self,eta=1,epochs=10,normaliza=True):
         self.eta = eta
         self.epochs = epochs
+        self.norm = norm
 
     # Entrenamiento realizado mediante la estrategia de regresión logística.
     def entrenamiento(self,datostrain,atributosDiscretos,diccionario):
         # Normalización de datos continuos
-        self.trainMeans, self.trainStds = self.calcularMediasDesv(datostrain,atributosDiscretos)
-        normTrain = self.normalizarDatos(datostrain,atributosDiscretos)
+        if self.norm:
+            self.trainMeans, self.trainStds = self.calcularMediasDesv(datostrain,atributosDiscretos)
+            normTrain = self.normalizarDatos(datostrain,atributosDiscretos)
+        else:
+            normTrain = datostrain
 
         # A la matriz de entrenamiento la añadimos una columna de unos a la izquierda
         Xtrain = np.hstack((np.ones((np.shape(datostrain)[0],1)),normTrain[:,:-1]))
@@ -253,7 +257,10 @@ class ClasificadorRegresionLogistica(Clasificador):
     # de entrenamiento.
     def clasifica(self,datostest,atributosDiscretos,diccionario):
         # Normalización de datos
-        normTest = self.normalizarDatos(datostest,atributosDiscretos)
+        if self.norm:
+            normTest = self.normalizarDatos(datostest,atributosDiscretos)
+        else:
+            normTest = datostest
 
         # A la matriz de entrenamiento la añadimos una columna de unos a la izquierda
         Xtest = np.hstack((np.ones((np.shape(datostest)[0],1)),normTest[:,:-1]))
@@ -290,7 +297,8 @@ class ClasificadorVecinosProximos(Clasificador):
     #   - euclidea
     #   - mahalanobis
     #   - manhattan
-    def __init__(self, numeroVecinos, distancia='euclidea'):
+    # normaliza: parámetro que indica si se normalizan o no los datos
+    def __init__(self, numeroVecinos, distancia='euclidea', normaliza=True):
         # Diccionario que contiene la funciones para cada distancia
         self.distancias = {
             'euclidea': self.distEuclidea,
@@ -299,13 +307,17 @@ class ClasificadorVecinosProximos(Clasificador):
         }
         self.numeroVecinos = numeroVecinos
         self.dist = self.distancias[distancia]
+        self.norm = normaliza
 
     # Método de entrenamiento de k-nn. Se calcula la media y desv de los datos
     # y se guardan los datos normalizados
     def entrenamiento(self,datostrain,atributosDiscretos,diccionario):
         # Normalización de datos continuos
-        self.trainMeans, self.trainStds = self.calcularMediasDesv(datostrain,atributosDiscretos)
-        self.normTrain = self.normalizarDatos(datostrain,atributosDiscretos).astype(np.float32)
+        if self.norm:
+            self.trainMeans, self.trainStds = self.calcularMediasDesv(datostrain,atributosDiscretos)
+            self.normTrain = self.normalizarDatos(datostrain,atributosDiscretos).astype(np.float32)
+        else:
+            self.normTrain = datostrain.astype(np.float32)
         # Cálculo de la inversa de la matriz de covarianzas
         if self.dist == self.distMahalanobis:
             self.mahaMatrix = np.linalg.inv(np.cov(np.transpose(self.normTrain[:,:-1])))
@@ -328,7 +340,10 @@ class ClasificadorVecinosProximos(Clasificador):
     # Clasificación datostest usando k-nn
     def clasifica(self,datostest,atributosDiscretos,diccionario):
         # Normalización de datos
-        normTest = self.normalizarDatos(datostest,atributosDiscretos)
+        if self.norm:
+            normTest = self.normalizarDatos(datostest,atributosDiscretos)
+        else:
+            normTest = datostest.astype(np.float32)
         # Array donde se van a ir guardando la clase predicha para cada dato
         preds = np.zeros((np.shape(datostest)[0]))
         for i, row in enumerate(normTest):

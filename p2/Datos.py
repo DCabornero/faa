@@ -50,6 +50,7 @@ class Datos:
             self.nominalAtributos[-1] = True
             self.datos[:,-1] = np.char.mod('%d', self.datos[:,-1])
 
+
         #Inicialización diccionario
         self.diccionario = [encodeAtribute(self.datos[:,i]) if val else {} for i, val in enumerate(self.nominalAtributos)]
 
