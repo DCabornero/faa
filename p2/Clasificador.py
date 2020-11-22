@@ -97,8 +97,8 @@ class Clasificador:
     # - Una dupla con la media y la desviacion típica si contiene datos continuos
     # - None si contiene datos discretos
     def calcularMediasDesv(self,datos,nominalAtributos):
-        means = np.zeros_like(nominalAtributos)
-        stds = np.zeros_like(nominalAtributos)
+        means = np.zeros(len(nominalAtributos))
+        stds = np.zeros(len(nominalAtributos))
         for i in range(len(nominalAtributos)):
             if not nominalAtributos[i]:
                 means[i] = np.mean(datos[:,i])
@@ -106,7 +106,7 @@ class Clasificador:
         # Se podría hacer np.mean(datos, axis=0) y np.std(datos, axis=0)
         # directamente. Aunque se calcule tambien la media y desv de atributos
         # no nominales, reduce mucho el numero de lineas y es mas eficiente
-        return (means, stds)
+        return means, stds
 
     # Devuelve la matriz con los datos de las columnas continuas normalizados.
     # Los datos nominales permanecen iguales.
@@ -227,28 +227,32 @@ class ClasificadorRegresionLogistica(Clasificador):
     def __init__(self,eta=1,epochs=10,normaliza=True):
         self.eta = eta
         self.epochs = epochs
-        self.norm = norm
+        self.norm = normaliza
+
+    def sig(self,x):
+        return 1/(1+np.exp(-x))
 
     # Entrenamiento realizado mediante la estrategia de regresión logística.
     def entrenamiento(self,datostrain,atributosDiscretos,diccionario):
         # Normalización de datos continuos
+        # print(datostrain[:,0])
         if self.norm:
             self.trainMeans, self.trainStds = self.calcularMediasDesv(datostrain,atributosDiscretos)
             normTrain = self.normalizarDatos(datostrain,atributosDiscretos)
+            # print(normTrain[:,0])
         else:
             normTrain = datostrain
 
         # A la matriz de entrenamiento la añadimos una columna de unos a la izquierda
         Xtrain = np.hstack((np.ones((np.shape(datostrain)[0],1)),normTrain[:,:-1]))
         ytrain = normTrain[:,-1]
-        sig = lambda x: 1/(1+np.exp(-x))
 
         # Inicialización del vector w con valores aleatorios entre -0.5 y 0.5
         w = np.random.random_sample((np.shape(Xtrain)[1]))-0.5
 
         for _ in range(self.epochs):
             for i, row in enumerate(Xtrain):
-                sigmoide = sig(np.dot(w,row))
+                sigmoide = self.sig(np.dot(w,row))
                 w = w - self.eta*(sigmoide-ytrain[i])*row
 
         self.trainVector = w
@@ -269,7 +273,7 @@ class ClasificadorRegresionLogistica(Clasificador):
         # Para cada resultado, vemos qué da el vector de entrenamiento con los parmámetros
         # de cada ejemplo. Ese resultado es la probabilidad de ser de clase 1.
         for i, row in enumerate(Xtest):
-            if np.dot(self.trainVector,row) <= 0.5:
+            if self.sig(np.dot(self.trainVector,row)) <= 0.5:
                 results[i] = 0
             else:
                 results[i] = 1
