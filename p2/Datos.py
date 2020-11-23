@@ -39,7 +39,7 @@ class Datos:
     def __init__(self, nombreFichero, predNominal=False):
         #Inicialización datos
         df = pd.read_csv(nombreFichero, header=0)
-        self.datos = df.values
+        self.datos = np.zeros(df.shape)
 
         #Inicialización nominalAtributos
         types = df.dtypes.array
@@ -48,16 +48,17 @@ class Datos:
         # Se fuerza a las clases a ser datos nominales
         if predNominal and not self.nominalAtributos[-1]:
             self.nominalAtributos[-1] = True
-            self.datos[:,-1] = np.char.mod('%d', self.datos[:,-1])
-
+            df.iloc[:,-1] = df.iloc[:,-1].astype(str)
 
         #Inicialización diccionario
-        self.diccionario = [encodeAtribute(self.datos[:,i]) if val else {} for i, val in enumerate(self.nominalAtributos)]
+        self.diccionario = [encodeAtribute(df.iloc[:,i].values) if val else {} for i, val in enumerate(self.nominalAtributos)]
 
         # Transformación de los valores nominales en su codificación
         for i in range(np.shape(self.datos)[1]):
             if self.nominalAtributos[i]:
-                self.datos[:,i] = [self.diccionario[i].get(val) for val in self.datos[:,i]]
+                self.datos[:,i] = [self.diccionario[i].get(val) for val in df.iloc[:,i]]
+            else:
+                self.datos[:,i] = df.iloc[:,i].values
 
     # Permite la obtención de ciertas filas de la matriz datos dados unos ciertos índices
     def extraeDatos(self, idx):

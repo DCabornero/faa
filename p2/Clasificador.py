@@ -171,7 +171,8 @@ class ClasificadorNaiveBayes(Clasificador):
     # Cálculo de priores dada la columna de clases del dataset.
     def procesaFinal(self, arr, numY):
         foo = np.zeros(numY)
-        for row in arr:
+        arrAux = arr.astype('int')
+        for row in arrAux:
             foo[row] += 1
         return foo / np.sum(foo)
 
