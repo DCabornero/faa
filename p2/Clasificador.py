@@ -164,8 +164,8 @@ class ClasificadorNaiveBayes(Clasificador):
         stds = np.zeros(numY)
         for i in range(numY):
             foo = np.where(arr[:,1] == i)
-            means[i] = np.mean(foo)
-            stds[i] = np.std(foo)
+            means[i] = np.mean(arr[foo,0])
+            stds[i] = np.std(arr[foo,0])
         return (means, stds)
 
     # Cálculo de priores dada la columna de clases del dataset.
