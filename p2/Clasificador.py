@@ -124,6 +124,9 @@ class Clasificador:
 # de datos siguiendo la estrategia Naive-Bayes.
 class ClasificadorNaiveBayes(Clasificador):
 
+    def __str__(self):
+        return 'NaiveBayes'
+
     # El parámetro opcional laplace permite que se aplique la corrección de Lapace
     # al conjunto de entrenamiento si fuera necesario.
     def __init__(self, laplace=False):
@@ -224,6 +227,10 @@ class ClasificadorNaiveBayes(Clasificador):
 # Clase que hereda el método abstracto clasificador. Entrena y clasifica conjuntos
 # de datos siguiendo la estrategia de regresión logística.
 class ClasificadorRegresionLogistica(Clasificador):
+
+    def __str__(self):
+        return 'RegresionLogistica'
+
     # eta: constante de aprendizaje
     def __init__(self,eta=1,epochs=10,normaliza=True):
         self.eta = eta
@@ -284,6 +291,9 @@ class ClasificadorRegresionLogistica(Clasificador):
 # Clase que hereda el método abstracto clasificador. Entrena y clasifica conjuntos
 # de datos usando el algoritmo de K Vecinos próximos
 class ClasificadorVecinosProximos(Clasificador):
+
+    def __str__(self):
+        return 'VecinosProximos'
 
     def distEuclidea(self,x, y):
         return np.sqrt(np.sum(np.power(x-y, 2)))
