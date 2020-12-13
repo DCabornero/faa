@@ -36,10 +36,14 @@ class Datos:
     # predNominal: valor que permite forzar a la última columna (la clase) a ser un
         # dato nominal aunque sea detectada como numérica. Útil si se van a realizar algoritmos
         # de clasificación
-    def __init__(self, nombreFichero, predNominal=False):
+    # allNominal: valor que fuerza a todas las clases a ser nominales
+    def __init__(self, nombreFichero, predNominal=False, allNominal=False):
         #Inicialización datos
         df = pd.read_csv(nombreFichero, header=0)
         self.datos = np.zeros(df.shape)
+
+        if allNominal:
+            df = df.astype(str)
 
         #Inicialización nominalAtributos
         types = df.dtypes.array
