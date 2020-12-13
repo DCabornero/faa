@@ -424,3 +424,49 @@ class AlgoritmoGenetico(Clasificador):
 
         randMatrix = np.random.randint(2,size=(numRows,numCols)).astype(bool)
         return randMatrix
+
+    # Muta una poblacion dados sus individuos
+    def mutarPoblacion(self,poblacion):
+        # Matriz que determina los bits a mutar
+        randMatrix = np.random.rand(poblacion.shape[0],poblacion.shape[1])
+        func1 = np.vectorize(lambda x: x < self.probMutacion)
+        mutaciones = func1(randMatrix)
+        print(mutaciones)
+        return np.logical_xor(poblacion,mutaciones)
+
+    # Dado un trainSet calcula el prior, es decir, la clase más común
+    def calculaPrior(self,trainSet):
+        clases, count = np.unique(trainSet[:,-1],return_counts=True)
+        return clases[np.argmax(count)]
+
+    # Un individuo predice una cierta clase para un sample (sin la clase)
+    def prediceClase(self,individuo,sample):
+        # Array de matrices (numReglas x numValores), donde cada matriz corresponde a un atributo
+        lenRegla = int(len(individuo)/self.numReglas)
+        reglas = np.hsplit(individuo.reshape(self.numReglas,lenRegla),self.splitAtributos)
+        clasesReglas = reglas[-1][:,0]
+        # Array donde se guarda si un atributo del sample cumple una regla
+        reglaCumplida = np.zeros((self.numReglas,len(sample))).astype(bool)
+
+        for i,val in enumerate(sample):
+            reglaCumplida[:,i] = reglas[i][:,val]
+
+        # Booleanos que indican qué reglas aplican para el sample
+        andSample = np.all(reglaCumplida,axis=1)
+
+        reglasAplicadas = clasesReglas[andSample]
+        print(reglasAplicadas)
+        values,counts = np.unique(reglasAplicadas,return_counts=True)
+        # Si ninguna regla aplica se devuleve el prior
+        if len(values) == 0:
+            return self.prior
+        elif len(values) == 1:
+            return values[0]
+        elif counts[0] == counts[1]:
+            return self.prior
+        else:
+            return values[np.argmax(counts)]
+
+    # VARIABLES QUE QUEDAN POR PONER EN ENTRENAMIENTO:
+    # self.prior
+    # self.splitAtributos (array que contiene los puntos de corte de atributos en las reglas)
