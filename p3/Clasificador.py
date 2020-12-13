@@ -375,5 +375,52 @@ class ClasificadorVecinosProximos(Clasificador):
 ##############################################################################
 
 class AlgoritmoGenetico(Clasificador):
-    def __init__(self,poblacion=50,epochs=100,probMutacion=0.01):
-        pass
+    # Cada función de cruce devuelve una matriz con los dos individuos nuevos
+    # inds: matriz con los dos individuos a cruzar.
+    def uniforme(self,inds):
+        newInds = np.copy(inds)
+        cruce = np.random.randint(2,size=inds.shape[1]).astype(bool)
+        print(cruce)
+        swappedInds = inds[[1,0]]
+        newInds[:,cruce] = swappedInds[:,cruce]
+        return newInds
+
+    def unPunto(self,inds):
+        punto = np.random.randint(1,inds.shape[1])
+        swappedInds = inds[[1,0]]
+        return np.concatenate((inds[:,:punto],swappedInds[:,punto:]),axis=1)
+
+    def dosPuntos(self,inds):
+        # Escogemos dos puntos DISTINTOS al azar y ORDENADOS
+        punto = []
+        punto.append(np.random.randint(1,inds.shape[1]))
+        punto.append(np.random.randint(1,inds.shape[1]-1))
+        if punto[1] >= punto[0]:
+            punto[1] += 1
+        punto = np.sort(punto)
+
+        swap = inds[[1,0]]
+        print(punto[0],punto[1])
+        return np.concatenate((inds[:,:punto[0]],swap[:,punto[0]:punto[1]],inds[:,punto[1]:]),axis=1)
+
+    def __init__(self,poblacion=50,epochs=100,numReglas=3,probMutacion=0.01,elitism=0.05,cruce='unPunto'):
+        self.cruces = {'uniforme': self.uniforme,
+                        'unPunto': self.unPunto,
+                        'dosPuntos': self.dosPuntos}
+        self.poblacion = poblacion
+        self.epochs = epochs
+        self.numReglas = numReglas
+        self.probMutacion = probMutacion
+        self.elitism = elitism
+        self.cruce = self.cruces[cruce]
+
+    # Define una población inicial definida por una matriz de booleanos donde cada fila corresponde a un
+    # individuo y cada columna a un posible valor de una regla concreta.
+    # numValues: número de valores totales de una regla
+    def initPoblacion(self,numValues):
+        numRows = self.poblacion
+        # Se suma 1 por la clasificación predicha por la regla
+        numCols = (numValues + 1)*self.numReglas
+
+        randMatrix = np.random.randint(2,size=(numRows,numCols)).astype(bool)
+        return randMatrix
