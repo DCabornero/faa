@@ -64,6 +64,9 @@ class Datos:
             else:
                 self.datos[:,i] = df.iloc[:,i].values
 
+        # Si elegimos allNominal, podemos interpretar el numpy array como array de enteros
+        self.datos = self.datos.astype(int)
+
     # Permite la obtención de ciertas filas de la matriz datos dados unos ciertos índices
     def extraeDatos(self, idx):
         return self.datos[ idx ]

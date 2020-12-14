@@ -380,7 +380,6 @@ class AlgoritmoGenetico(Clasificador):
     def uniforme(self,inds):
         newInds = np.copy(inds)
         cruce = np.random.randint(2,size=inds.shape[1]).astype(bool)
-        print(cruce)
         swappedInds = inds[[1,0]]
         newInds[:,cruce] = swappedInds[:,cruce]
         return newInds
@@ -400,7 +399,6 @@ class AlgoritmoGenetico(Clasificador):
         punto = np.sort(punto)
 
         swap = inds[[1,0]]
-        print(punto[0],punto[1])
         return np.concatenate((inds[:,:punto[0]],swap[:,punto[0]:punto[1]],inds[:,punto[1]:]),axis=1)
 
     def __init__(self,poblacion=50,epochs=100,numReglas=3,probMutacion=0.01,elitism=0.05,cruce='unPunto'):
@@ -411,7 +409,7 @@ class AlgoritmoGenetico(Clasificador):
         self.epochs = epochs
         self.numReglas = numReglas
         self.probMutacion = probMutacion
-        self.elitism = elitism
+        self.elite = np.floor(poblacion*elitism).astype(int)#Se calcula directamente el número de élites por población
         self.cruce = self.cruces[cruce]
 
     # Define una población inicial definida por una matriz de booleanos donde cada fila corresponde a un
@@ -419,8 +417,7 @@ class AlgoritmoGenetico(Clasificador):
     # numValues: número de valores totales de una regla
     def initPoblacion(self,numValues):
         numRows = self.poblacion
-        # Se suma 1 por la clasificación predicha por la regla
-        numCols = (numValues + 1)*self.numReglas
+        numCols = numValues*self.numReglas
 
         randMatrix = np.random.randint(2,size=(numRows,numCols)).astype(bool)
         return randMatrix
@@ -428,10 +425,9 @@ class AlgoritmoGenetico(Clasificador):
     # Muta una poblacion dados sus individuos
     def mutarPoblacion(self,poblacion):
         # Matriz que determina los bits a mutar
-        randMatrix = np.random.rand(poblacion.shape[0],poblacion.shape[1])
+        randMatrix = np.random.rand(np.shape(poblacion)[0],np.shape(poblacion)[1])
         func1 = np.vectorize(lambda x: x < self.probMutacion)
         mutaciones = func1(randMatrix)
-        print(mutaciones)
         return np.logical_xor(poblacion,mutaciones)
 
     # Dado un trainSet calcula el prior, es decir, la clase más común
@@ -455,7 +451,6 @@ class AlgoritmoGenetico(Clasificador):
         andSample = np.all(reglaCumplida,axis=1)
 
         reglasAplicadas = clasesReglas[andSample]
-        print(reglasAplicadas)
         values,counts = np.unique(reglasAplicadas,return_counts=True)
         # Si ninguna regla aplica se devuleve el prior
         if len(values) == 0:
@@ -467,6 +462,69 @@ class AlgoritmoGenetico(Clasificador):
         else:
             return values[np.argmax(counts)]
 
-    # VARIABLES QUE QUEDAN POR PONER EN ENTRENAMIENTO:
-    # self.prior
-    # self.splitAtributos (array que contiene los puntos de corte de atributos en las reglas)
+    # Calcula el fitness para un cierto individuo
+    def fitnessInd(self,ind,trainSet):
+        atributos = trainSet[:,:-1]
+        clases = trainSet[:,-1]
+
+        preds = np.apply_along_axis(lambda x: self.prediceClase(ind,x),1,atributos)
+        tasaAcierto = np.mean(np.equal(preds,clases))
+        return tasaAcierto
+
+    # Calcula el fitness para una cierta población
+    def fitnessPobl(self,poblacion,trainSet):
+        return np.apply_along_axis(lambda x: self.fitnessInd(x,trainSet),1,poblacion)
+
+    # Devuelve la subpoblación elitista
+    def eligeElite(self,poblacion,fitness):
+        sortedPobl = poblacion[np.argsort(fitness)]
+        return sortedPobl[-self.elite:]
+
+    # Devuelve dos individuos descendientes de acuerdo con el fitness (se pone pesos para indicar
+    # que lo que se pasan son los fitness reescalados para que sumen 1)
+    def eligeDescendientes(self,poblacion,pesos):
+        # Selección aleatoria de los índices
+        selected = np.random.choice(np.shape(poblacion)[0],2,replace=False,p=pesos)
+        return poblacion[selected]
+
+    def printSituacion(self,epoca,fitness):
+        print('====================================================')
+        print('Época: ',epoca)
+        print('Fitness medio: ',np.mean(fitness))
+        print('Fitness del mejor individuo: ',np.max(fitness))
+        print('====================================================')
+
+    def entrenamiento(self,datosTrain,atributosDiscretos,diccionario):
+        # Incialización de datos iniciales: cálculo del prior, población inicial y puntos
+        # de corte entre atributos dentro de las reglas
+        values, count = np.unique(datosTrain[:,-1],return_counts=True)
+        self.prior = values[np.argmax(count)]
+
+        lenAtribs = np.array([len(x) for x in diccionario])
+        lenAtribs[-1] = 1
+        self.splitAtributos = np.array([np.sum(lenAtribs[:i+1]) for i in range(len(lenAtribs)-1)])
+
+        poblacion = self.initPoblacion(np.sum(lenAtribs))
+
+        numDescendientes = self.poblacion - self.elite
+        numApareos = np.ceil(numDescendientes/2.0).astype(int)
+
+        # Comienzan las generaciones
+        for epoch in range(self.epochs):
+            fitness = self.fitnessPobl(poblacion,datosTrain)
+            self.printSituacion(epoch,fitness)
+
+            elite = self.eligeElite(poblacion,fitness)
+            # Creación de progenitores y descendientes
+            descendientes = np.zeros((numApareos*2,np.shape(poblacion)[1])).astype(bool)
+            fitEscala = fitness / np.sum(fitness)
+            for ap in range(numApareos):
+                prog = self.eligeDescendientes(poblacion,fitEscala)
+                descendientes[[2*ap,2*ap+1]] = self.cruce(prog)
+            mutados = self.mutarPoblacion(descendientes[:numDescendientes])
+            poblacion = np.vstack((elite,mutados))
+
+        fitness = self.fitnessPobl(poblacion,datosTrain)
+        self.printSituacion('final',fitness)
+
+        self.individuo = poblacion[np.argmax(fitness)]
