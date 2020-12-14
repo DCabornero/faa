@@ -1,6 +1,7 @@
 from abc import ABCMeta,abstractmethod
 import numpy as np
 from scipy.stats import norm
+from time import time
 
 from EstrategiaParticionado import ValidacionSimple
 
@@ -440,7 +441,7 @@ class AlgoritmoGenetico(Clasificador):
     # ninguna regla cumple los requisitos o que hay empate entre reglas (respectivamente)
     # Si se desea que siempre fallen, -1. Si se desea dar el prior, 'prior'
     def prediceClase(self,individuo,sample,predNinguno='prior',predEmpate='prior'):
-        dict = {-1:-1,'prior':self.prior}
+        dict = {-1:None,'prior':self.prior}
         predNone = dict.get(predNinguno)
         predDraw = dict.get(predEmpate)
         # Array de matrices (numReglas x numValores), donde cada matriz corresponde a un atributo
@@ -501,6 +502,7 @@ class AlgoritmoGenetico(Clasificador):
         print('====================================================')
 
     def entrenamiento(self,datosTrain,atributosDiscretos,diccionario):
+        t0 = time()
         # Incialización de datos iniciales: cálculo del prior, población inicial y puntos
         # de corte entre atributos dentro de las reglas
         values, count = np.unique(datosTrain[:,-1],return_counts=True)
@@ -533,8 +535,10 @@ class AlgoritmoGenetico(Clasificador):
             mutados = self.mutarPoblacion(descendientes[:numDescendientes])
             poblacion = np.vstack((elite,mutados))
 
-        fitness = self.fitnessPobl(poblacion,datosTrain)
+        fitness = self.fitnessPobl(poblacion,datosTrain,predNinguno=-1,predEmpate=-1)
         self.printSituacion('final',fitness)
+        t1 = time()
+        print('Tiempo de ejecución: ',t1-t0,' segundos')
 
         # Individuo con mejor fitness
         self.individuo = poblacion[np.argmax(fitness)]
