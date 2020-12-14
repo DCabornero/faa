@@ -436,7 +436,13 @@ class AlgoritmoGenetico(Clasificador):
         return clases[np.argmax(count)]
 
     # Un individuo predice una cierta clase para un sample (sin la clase)
-    def prediceClase(self,individuo,sample):
+    # predNinguno y predEmpate son los valores que se darán si se da que
+    # ninguna regla cumple los requisitos o que hay empate entre reglas (respectivamente)
+    # Si se desea que siempre fallen, -1. Si se desea dar el prior, 'prior'
+    def prediceClase(self,individuo,sample,predNinguno='prior',predEmpate='prior'):
+        dict = {-1:-1,'prior':self.prior}
+        predNone = dict.get(predNinguno)
+        predDraw = dict.get(predEmpate)
         # Array de matrices (numReglas x numValores), donde cada matriz corresponde a un atributo
         lenRegla = int(len(individuo)/self.numReglas)
         reglas = np.hsplit(individuo.reshape(self.numReglas,lenRegla),self.splitAtributos)
@@ -454,26 +460,26 @@ class AlgoritmoGenetico(Clasificador):
         values,counts = np.unique(reglasAplicadas,return_counts=True)
         # Si ninguna regla aplica se devuleve el prior
         if len(values) == 0:
-            return self.prior
+            return predNone
         elif len(values) == 1:
             return values[0]
         elif counts[0] == counts[1]:
-            return self.prior
+            return predDraw
         else:
             return values[np.argmax(counts)]
 
     # Calcula el fitness para un cierto individuo
-    def fitnessInd(self,ind,trainSet):
+    def fitnessInd(self,ind,trainSet,predNinguno,predEmpate):
         atributos = trainSet[:,:-1]
         clases = trainSet[:,-1]
 
-        preds = np.apply_along_axis(lambda x: self.prediceClase(ind,x),1,atributos)
+        preds = np.apply_along_axis(lambda x: self.prediceClase(ind,x,predNinguno,predEmpate),1,atributos)
         tasaAcierto = np.mean(np.equal(preds,clases))
         return tasaAcierto
 
     # Calcula el fitness para una cierta población
-    def fitnessPobl(self,poblacion,trainSet):
-        return np.apply_along_axis(lambda x: self.fitnessInd(x,trainSet),1,poblacion)
+    def fitnessPobl(self,poblacion,trainSet,predNinguno='prior',predEmpate='prior'):
+        return np.apply_along_axis(lambda x: self.fitnessInd(x,trainSet,predNinguno,predEmpate),1,poblacion)
 
     # Devuelve la subpoblación elitista
     def eligeElite(self,poblacion,fitness):
@@ -511,9 +517,11 @@ class AlgoritmoGenetico(Clasificador):
 
         # Comienzan las generaciones
         for epoch in range(self.epochs):
-            fitness = self.fitnessPobl(poblacion,datosTrain)
+            # Informe de situación
+            fitness = self.fitnessPobl(poblacion,datosTrain,predNinguno=-1,predEmpate=-1)
             self.printSituacion(epoch,fitness)
 
+            # Elitismo
             elite = self.eligeElite(poblacion,fitness)
             # Creación de progenitores y descendientes
             descendientes = np.zeros((numApareos*2,np.shape(poblacion)[1])).astype(bool)
@@ -521,10 +529,16 @@ class AlgoritmoGenetico(Clasificador):
             for ap in range(numApareos):
                 prog = self.eligeDescendientes(poblacion,fitEscala)
                 descendientes[[2*ap,2*ap+1]] = self.cruce(prog)
+            # A lo mejor hemos creado más descendientes de los necesarios, cortamos hasta donde necesitemos
             mutados = self.mutarPoblacion(descendientes[:numDescendientes])
             poblacion = np.vstack((elite,mutados))
 
         fitness = self.fitnessPobl(poblacion,datosTrain)
         self.printSituacion('final',fitness)
 
+        # Individuo con mejor fitness
         self.individuo = poblacion[np.argmax(fitness)]
+
+    def clasifica(self,datosTest,atributosDiscretos,diccionario):
+        func = lambda x: self.prediceClase(self.individuo,x)
+        return np.apply_along_axis(func,1,datosTest[:,:-1])
