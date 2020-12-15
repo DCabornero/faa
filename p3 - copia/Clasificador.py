@@ -376,6 +376,19 @@ class ClasificadorVecinosProximos(Clasificador):
 ##############################################################################
 
 class AlgoritmoGenetico(Clasificador):
+    # Devuelve un mismo individuo con las reglas cambiadas de sitio
+    def shuffleIndividuo(self,individuo):
+        numReglas = int(len(individuo)/self.lenRegla)
+        ind = individuo.reshape((numReglas,self.lenRegla))
+        np.random.shuffle(ind)
+        return ind.reshape((len(individuo)))
+
+    # Ordena los individuos por longitud: coloca al más corto primero
+    def shortFirst(self,individuos):
+        if len(individuos[0]) > len(individuos[1]):
+            individuos.reverse()
+        return individuos
+
     # Cada función de cruce devuelve una matriz con los dos individuos nuevos
     # inds: matriz con los dos individuos a cruzar.
     def uniforme(self,inds):
@@ -386,9 +399,12 @@ class AlgoritmoGenetico(Clasificador):
         return newInds
 
     def unPunto(self,inds):
-        punto = np.random.randint(1,inds.shape[1])
-        swappedInds = inds[[1,0]]
-        return np.concatenate((inds[:,:punto],swappedInds[:,punto:]),axis=1)
+        ordered = self.shortFirst(inds)
+        ordered[1] = self.shuffleIndividuo(ordered[1])
+        punto = np.random.randint(1,len(ordered[0]))
+        swapped = ordered.copy()
+        swapped.reverse()
+        return [np.concatenate((ordered[i][:punto],swapped[i][punto:])) for i in range(2)]
 
     def dosPuntos(self,inds):
         # Escogemos dos puntos DISTINTOS al azar y ORDENADOS
@@ -532,7 +548,7 @@ class AlgoritmoGenetico(Clasificador):
         #REVISION
         self.splitAtributos = np.array([np.sum(lenAtribs[:i+1]) for i in range(len(lenAtribs)-1)])
 
-        poblacion = self.initPoblacion(np.sum(lenAtribs))
+        poblacion = self.initPoblacion()
 
         numDescendientes = self.poblacion - self.elite
         numApareos = np.ceil(numDescendientes/2.0).astype(int)
@@ -546,14 +562,14 @@ class AlgoritmoGenetico(Clasificador):
             # Elitismo
             elite = self.eligeElite(poblacion,fitness)
             # Creación de progenitores y descendientes
-            descendientes = np.zeros((numApareos*2,np.shape(poblacion)[1])).astype(bool)
+            descendientes = []
             fitEscala = fitness / np.sum(fitness)
             for ap in range(numApareos):
                 prog = self.eligeDescendientes(poblacion,fitEscala)
-                descendientes[[2*ap,2*ap+1]] = self.cruce(prog)
+                descendientes.extend(self.cruce(prog))
             # A lo mejor hemos creado más descendientes de los necesarios, cortamos hasta donde necesitemos
             mutados = self.mutarPoblacion(descendientes[:numDescendientes])
-            poblacion = np.vstack((elite,mutados))
+            poblacion = elite + mutados
 
         fitness = self.fitnessPobl(poblacion,datosTrain,predNinguno=-1,predEmpate=-1)
         self.printSituacion('final',fitness)
