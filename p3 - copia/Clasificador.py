@@ -426,27 +426,28 @@ class AlgoritmoGenetico(Clasificador):
         swapped.reverse()
         return [np.concatenate((ordered[i][:punto1],swapped[i][punto1:punto2],ordered[i][punto2:])) for i in range(2)]
 
-    def __init__(self,poblacion=50,epochs=100,numReglas=3,maxReglas=4,probMutacionBit=0.01,probMutInd=0.05,elitism=0.05,cruce='unPunto'):
+    #
+    def __init__(self,poblacion=50,epochs=100,maxReglas=4,probMutacionBit=0.01,probMutInd=0.05,elitism=0.05,cruce='unPunto'):
         self.cruces = {'uniforme': self.uniforme,
                         'unPunto': self.unPunto,
                         'dosPuntos': self.dosPuntos}
         self.poblacion = poblacion
         self.epochs = epochs
-        self.numReglas = numReglas
         self.maxReglas = maxReglas
         self.probMutacionBit = probMutacionBit
         self.probMutacionInd = probMutInd
         self.elite = np.floor(poblacion*elitism).astype(int) #Se calcula directamente el número de élites por población
         self.cruce = self.cruces[cruce]
 
+    def individuoRandom(self):
+        longitud = self.lenRegla*np.random.randint(1,self.maxReglas)
+        return np.random.randint(2,size=(longitud)).astype(bool)
     # Define una población inicial definida por una matriz de booleanos donde cada fila corresponde a un
     # individuo y cada columna a un posible valor de una regla concreta.
-    # numValues: número de valores totales de una regla
     def initPoblacion(self):
         numRows = self.poblacion
-        numCols = self.lenRegla*self.numReglas
 
-        randMatrix = [np.random.randint(2,size=(numCols)).astype(bool) for _ in range(numRows)]
+        randMatrix = [self.individuoRandom() for _ in range(numRows)]
         return randMatrix
 
     # Muta una poblacion dados sus individuos
