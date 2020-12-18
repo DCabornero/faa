@@ -392,11 +392,17 @@ class AlgoritmoGenetico(Clasificador):
     # Cada función de cruce devuelve una matriz con los dos individuos nuevos
     # inds: matriz con los dos individuos a cruzar.
     def uniforme(self,inds):
-        newInds = np.copy(inds)
-        cruce = np.random.randint(2,size=inds.shape[1]).astype(bool)
-        swappedInds = inds[[1,0]]
-        newInds[:,cruce] = swappedInds[:,cruce]
-        return newInds
+        ordered = self.shortFirst(inds)
+        ordered[1] = self.shuffleIndividuo(ordered[1])
+
+        cruceBool = np.random.randint(2,size=len(ordered[0])).astype(bool)
+        cruce = np.array([i for i,res in enumerate(cruceBool) if res])
+
+        swappedInds = [np.copy(ind) for ind in ordered]
+        swappedInds.reverse()
+        for i in range(2):
+            ordered[i][cruce] = swappedInds[i][cruce]
+        return ordered
 
     def unPunto(self,inds):
         ordered = self.shortFirst(inds)
@@ -407,16 +413,18 @@ class AlgoritmoGenetico(Clasificador):
         return [np.concatenate((ordered[i][:punto],swapped[i][punto:])) for i in range(2)]
 
     def dosPuntos(self,inds):
+        ordered = self.shortFirst(inds)
+        ordered[1] = self.shuffleIndividuo(ordered[1])
         # Escogemos dos puntos DISTINTOS al azar y ORDENADOS
-        punto = []
-        punto.append(np.random.randint(1,inds.shape[1]))
-        punto.append(np.random.randint(1,inds.shape[1]-1))
-        if punto[1] >= punto[0]:
-            punto[1] += 1
-        punto = np.sort(punto)
-
-        swap = inds[[1,0]]
-        return np.concatenate((inds[:,:punto[0]],swap[:,punto[0]:punto[1]],inds[:,punto[1]:]),axis=1)
+        punto1 = np.random.randint(1,len(ordered[0]))
+        punto2 = np.random.randint(1,len(ordered[0])-1)
+        if punto2 >= punto1:
+            punto2 += 1
+        else:
+            punto1, punto2 = punto2, punto1
+        swapped = ordered.copy()
+        swapped.reverse()
+        return [np.concatenate((ordered[i][:punto1],swapped[i][punto1:punto2],ordered[i][punto2:])) for i in range(2)]
 
     def __init__(self,poblacion=50,epochs=100,numReglas=3,maxReglas=4,probMutacionBit=0.01,probMutInd=0.05,elitism=0.05,cruce='unPunto'):
         self.cruces = {'uniforme': self.uniforme,
