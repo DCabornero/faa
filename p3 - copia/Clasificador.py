@@ -2,6 +2,7 @@ from abc import ABCMeta,abstractmethod
 import numpy as np
 from scipy.stats import norm
 from time import time
+import matplotlib.pyplot as plt
 
 from EstrategiaParticionado import ValidacionSimple
 
@@ -376,6 +377,8 @@ class ClasificadorVecinosProximos(Clasificador):
 ##############################################################################
 
 class AlgoritmoGenetico(Clasificador):
+    def __str__(self):
+        return 'AlgoritmoGenetico'
     # Devuelve un mismo individuo con las reglas cambiadas de sitio
     def shuffleIndividuo(self,individuo):
         numReglas = int(len(individuo)/self.lenRegla)
@@ -390,7 +393,7 @@ class AlgoritmoGenetico(Clasificador):
         return individuos
 
     # Cada función de cruce devuelve una matriz con los dos individuos nuevos
-    # inds: matriz con los dos individuos a cruzar.
+    # inds: array con los dos individuos a cruzar.
     def uniforme(self,inds):
         ordered = self.shortFirst(inds)
         ordered[1] = self.shuffleIndividuo(ordered[1])
@@ -426,22 +429,25 @@ class AlgoritmoGenetico(Clasificador):
         swapped.reverse()
         return [np.concatenate((ordered[i][:punto1],swapped[i][punto1:punto2],ordered[i][punto2:])) for i in range(2)]
 
-    #
-    def __init__(self,poblacion=50,epochs=100,maxReglas=4,probMutacionBit=0.01,probMutInd=0.05,elitism=0.05,cruce='unPunto'):
+
+    def __init__(self,poblacion=50,epochs=100,maxReglas=4,probMutBit=0.01,probMutInd=0.05,elitism=0.05,cruce='unPunto',plot_fitness=False):
         self.cruces = {'uniforme': self.uniforme,
                         'unPunto': self.unPunto,
                         'dosPuntos': self.dosPuntos}
         self.poblacion = poblacion
         self.epochs = epochs
         self.maxReglas = maxReglas
-        self.probMutacionBit = probMutacionBit
+        self.probMutacionBit = probMutBit
         self.probMutacionInd = probMutInd
         self.elite = np.floor(poblacion*elitism).astype(int) #Se calcula directamente el número de élites por población
         self.cruce = self.cruces[cruce]
+        self.plot = plot_fitness
 
+    # Genera un individuo nuevo al azar
     def individuoRandom(self):
         longitud = self.lenRegla*np.random.randint(1,self.maxReglas)
         return np.random.randint(2,size=(longitud)).astype(bool)
+
     # Define una población inicial definida por una matriz de booleanos donde cada fila corresponde a un
     # individuo y cada columna a un posible valor de una regla concreta.
     def initPoblacion(self):
@@ -538,14 +544,22 @@ class AlgoritmoGenetico(Clasificador):
         return [np.copy(poblacion[i]) for i in selected]
 
     def printSituacion(self,epoca,fitness):
+        media = np.mean(fitness)
+        maximo = np.max(fitness)
         print('====================================================')
         print('Época: ',epoca)
-        print('Fitness medio: ',np.mean(fitness))
-        print('Fitness del mejor individuo: ',np.max(fitness))
+        print('Fitness medio: ',media)
+        print('Fitness del mejor individuo: ',maximo)
         print('====================================================')
+        if self.plot:
+            self.fitMax[epoca] = maximo
+            self.fitAvg[epoca] = media
 
     def entrenamiento(self,datosTrain,atributosDiscretos,diccionario):
         t0 = time()
+        if self.plot:
+            self.fitMax = np.zeros((self.epochs+1))
+            self.fitAvg = np.zeros((self.epochs+1))
         # Incialización de datos iniciales: cálculo del prior, población inicial y puntos
         # de corte entre atributos dentro de las reglas
         values, count = np.unique(datosTrain[:,-1],return_counts=True)
@@ -554,7 +568,6 @@ class AlgoritmoGenetico(Clasificador):
         lenAtribs = np.array([len(x) for x in diccionario])
         lenAtribs[-1] = 1
         self.lenRegla = np.sum(lenAtribs)
-        #REVISION
         self.splitAtributos = np.array([np.sum(lenAtribs[:i+1]) for i in range(len(lenAtribs)-1)])
 
         poblacion = self.initPoblacion()
@@ -581,9 +594,16 @@ class AlgoritmoGenetico(Clasificador):
             poblacion = elite + mutados
 
         fitness = self.fitnessPobl(poblacion,datosTrain,predNinguno=-1,predEmpate=-1)
-        self.printSituacion('final',fitness)
+        self.printSituacion(self.epochs,fitness)
         t1 = time()
         print('Tiempo de ejecución: ',t1-t0,' segundos')
+
+        if self.plot:
+            epArr = np.array([e for e in range(self.epochs+1)])
+            plt.plot(epArr,self.fitMax,label='Fit. Max.')
+            plt.plot(epArr,self.fitAvg,label='Fit. Avg')
+            plt.legend()
+            plt.show()
 
         # Individuo con mejor fitness
         self.individuo = poblacion[np.argmax(fitness)]
